@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -142,20 +143,24 @@ fun FriendsApp(viewModel: FriendsViewModel) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Friend Connections") },
+                title = { Text("Connections") },
                 actions = {
-                    IconButton(onClick = { showImportDialog = true }) {
+                    Button(
+                        onClick = { showImportDialog = true },
+                        modifier = Modifier.padding(end = 8.dp)
+                    ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Add,
-                                contentDescription = "Import Contacts"
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
                             )
                             Text(
-                                text = "Import",
-                                style = MaterialTheme.typography.labelLarge
+                                text = "Import contacts",
+                                style = MaterialTheme.typography.labelMedium
                             )
                         }
                     }
