@@ -1,0 +1,18 @@
+<resources>
+    <string name="app_name">Connection Reminders</string>
+    <string name="add_friend">Add Friend</string>
+    <string name="friend_details">Friend Details</string>
+    <string name="mark_contacted">Mark as Contacted</string>
+    <string name="delete_friend">Delete Friend</string>
+    <string name="contact_info">Contact Information</string>
+    <string name="notes">Notes</string>
+    <string name="reminder_settings">Reminder Settings</string>
+    <string name="contact_status">Contact Status</string>
+    <string name="reminder_frequency">Reminder Frequency</string>
+    <string name="never_contacted">Never contacted</string>
+    <string name="no_contact_info">No contact information provided</string>
+    <string name="no_notes">No notes added</string>
+    <string name="save">Save</string>
+    <string name="cancel">Cancel</string>
+    <string name="go_back">Go Back</string>
+</resources>
