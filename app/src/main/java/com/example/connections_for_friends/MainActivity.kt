@@ -6,6 +6,7 @@ import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
@@ -33,6 +34,8 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -49,15 +52,18 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import com.example.connections_for_friends.data.ContactData
 import com.example.connections_for_friends.data.Friend
 import com.example.connections_for_friends.notification.ReminderScheduler
 import com.example.connections_for_friends.ui.theme.Connections_for_friendsTheme
@@ -66,6 +72,7 @@ import com.example.connections_for_friends.ui.theme.NeutralCardColor
 import com.example.connections_for_friends.ui.theme.RecentlyContactedGreen
 import com.example.connections_for_friends.viewmodel.FriendsViewModel
 import com.example.connections_for_friends.viewmodel.FriendsViewModelFactory
+import com.example.connections_for_friends.viewmodel.ImportState
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -129,12 +136,30 @@ class MainActivity : ComponentActivity() {
 fun FriendsApp(viewModel: FriendsViewModel) {
     val friends by viewModel.friends.collectAsState(initial = emptyList())
     var showAddDialog by remember { mutableStateOf(false) }
+    var showImportDialog by remember { mutableStateOf(false) }
     var selectedFriendId by remember { mutableStateOf<String?>(null) }
     
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Friend Connections") }
+                title = { Text("Friend Connections") },
+                actions = {
+                    IconButton(onClick = { showImportDialog = true }) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Add,
+                                contentDescription = "Import Contacts"
+                            )
+                            Text(
+                                text = "Import",
+                                style = MaterialTheme.typography.labelLarge
+                            )
+                        }
+                    }
+                }
             )
         },
         floatingActionButton = {
@@ -152,6 +177,13 @@ fun FriendsApp(viewModel: FriendsViewModel) {
                 onAddFriend = { name, birthday, notes, reminderFrequencyDays ->
                     viewModel.addFriend(name, birthday, notes, reminderFrequencyDays)
                 }
+            )
+        }
+        
+        if (showImportDialog) {
+            ImportContactsDialog(
+                viewModel = viewModel,
+                onDismiss = { showImportDialog = false }
             )
         }
         
@@ -656,6 +688,281 @@ fun FriendDetailDialog(
         dismissButton = {
             Button(onClick = onDeleteClick) {
                 Text("Delete")
+            }
+        }
+    )
+}
+
+@Composable
+fun ImportContactsDialog(
+    viewModel: FriendsViewModel,
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+    val importState by viewModel.importState.collectAsState()
+    val availableContacts by viewModel.availableContacts.collectAsState()
+    val contactsImportedCount by viewModel.contactsImportedCount.collectAsState()
+    
+    // Check permission state
+    val hasContactPermission = remember {
+        ContextCompat.checkSelfPermission(
+            context,
+            android.Manifest.permission.READ_CONTACTS
+        ) == PackageManager.PERMISSION_GRANTED
+    }
+    
+    // For requesting permission - use remember to prevent recreation
+    val requestPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted -> 
+        if (isGranted) {
+            // Permission granted, load contacts
+            viewModel.loadContacts(context)
+        }
+    }
+    
+    // Track selected contacts
+    val selectedContacts = remember { mutableStateListOf<ContactData>() }
+    var reminderFrequencyDays by remember { mutableIntStateOf(30) }
+    var isSelectAll by remember { mutableStateOf(false) }
+    
+    // Load contacts if permission already granted
+    LaunchedEffect(hasContactPermission) {
+        if (hasContactPermission && importState is ImportState.Idle) {
+            viewModel.loadContacts(context)
+        }
+    }
+    
+    // Handle selection of all contacts
+    LaunchedEffect(isSelectAll, availableContacts) {
+        if (isSelectAll) {
+            selectedContacts.clear()
+            selectedContacts.addAll(availableContacts)
+        } else if (selectedContacts.size == availableContacts.size) {
+            // If all were selected and user unchecks "Select All"
+            selectedContacts.clear()
+        }
+    }
+    
+    AlertDialog(
+        onDismissRequest = {
+            viewModel.resetImportState()
+            onDismiss()
+        },
+        title = { Text("Import Friends from Contacts") },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(8.dp)
+                    .height(400.dp), // Fixed height for scrollable content
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                when (importState) {
+                    is ImportState.Idle -> {
+                        if (hasContactPermission) {
+                            Text("Loading contacts...")
+                        } else {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Text("Permission needed to access contacts")
+                                Button(onClick = { 
+                                    requestPermissionLauncher.launch(android.Manifest.permission.READ_CONTACTS)
+                                }) {
+                                    Text("Grant Permission")
+                                }
+                            }
+                        }
+                    }
+                    
+                    is ImportState.Loading -> {
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            CircularProgressIndicator()
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text("Loading contacts...")
+                        }
+                    }
+                    
+                    is ImportState.Success -> {
+                        if (contactsImportedCount > 0) {
+                            // Show success message if contacts were imported
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = "Successfully imported $contactsImportedCount friends!",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                
+                                Spacer(modifier = Modifier.height(16.dp))
+                                
+                                Button(onClick = {
+                                    viewModel.resetImportState()
+                                    onDismiss()
+                                }) {
+                                    Text("Done")
+                                }
+                            }
+                        } else if (availableContacts.isEmpty()) {
+                            // No contacts found
+                            Text("No contacts found on your device.")
+                        } else {
+                            // Show contact selection UI
+                            Column {
+                                // Default reminder frequency slider
+                                Text("Default reminder frequency: $reminderFrequencyDays days")
+                                Slider(
+                                    value = reminderFrequencyDays.toFloat(),
+                                    onValueChange = { reminderFrequencyDays = it.roundToInt() },
+                                    valueRange = 1f..365f,
+                                    steps = 364,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                                
+                                // Select all checkbox
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Checkbox(
+                                        checked = isSelectAll,
+                                        onCheckedChange = { isSelectAll = it }
+                                    )
+                                    
+                                    Text(
+                                        text = "Select All (${availableContacts.size} contacts)",
+                                        modifier = Modifier.padding(start = 8.dp)
+                                    )
+                                }
+                                
+                                // Contacts list
+                                LazyColumn(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .weight(1f)
+                                ) {
+                                    items(availableContacts) { contact ->
+                                        val isSelected = selectedContacts.contains(contact)
+                                        
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .clickable {
+                                                    if (isSelected) {
+                                                        selectedContacts.remove(contact)
+                                                    } else {
+                                                        selectedContacts.add(contact)
+                                                    }
+                                                }
+                                                .padding(vertical = 8.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Checkbox(
+                                                checked = isSelected,
+                                                onCheckedChange = {
+                                                    if (it) {
+                                                        selectedContacts.add(contact)
+                                                    } else {
+                                                        selectedContacts.remove(contact)
+                                                    }
+                                                }
+                                            )
+                                            
+                                            Column(
+                                                modifier = Modifier
+                                                    .weight(1f)
+                                                    .padding(start = 8.dp)
+                                            ) {
+                                                Text(
+                                                    text = contact.name,
+                                                    style = MaterialTheme.typography.bodyMedium
+                                                )
+                                                
+                                                if (contact.birthday.isNotBlank()) {
+                                                    Text(
+                                                        text = "Has birthday",
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                        color = MaterialTheme.colorScheme.primary
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                
+                                // Selected count
+                                Text(
+                                    text = "${selectedContacts.size} contacts selected",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    modifier = Modifier.padding(top = 8.dp)
+                                )
+                            }
+                        }
+                    }
+                    
+                    is ImportState.Error -> {
+                        val errorState = importState as ImportState.Error
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                text = "Error: ${errorState.message}",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                            
+                            Spacer(modifier = Modifier.height(16.dp))
+                            
+                            Button(onClick = {
+                                viewModel.resetImportState()
+                                if (!hasContactPermission) {
+                                    requestPermissionLauncher.launch(android.Manifest.permission.READ_CONTACTS)
+                                } else {
+                                    viewModel.loadContacts(context)
+                                }
+                            }) {
+                                Text("Try Again")
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            if (importState is ImportState.Success && contactsImportedCount == 0) {
+                Button(
+                    onClick = {
+                        if (selectedContacts.isNotEmpty()) {
+                            viewModel.importContacts(selectedContacts, reminderFrequencyDays)
+                        } else {
+                            onDismiss()
+                        }
+                    },
+                    enabled = selectedContacts.isNotEmpty() || availableContacts.isEmpty()
+                ) {
+                    Text(if (selectedContacts.isNotEmpty()) "Import Selected" else "Close")
+                }
+            }
+        },
+        dismissButton = {
+            if (importState is ImportState.Success && contactsImportedCount == 0) {
+                Button(onClick = {
+                    viewModel.resetImportState()
+                    onDismiss()
+                }) {
+                    Text("Cancel")
+                }
             }
         }
     )

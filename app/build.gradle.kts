@@ -74,6 +74,9 @@ dependencies {
     // WorkManager for notifications
     implementation(libs.androidx.work.runtime.ktx)
     
+    // Permissions
+    implementation("com.google.accompanist:accompanist-permissions:0.32.0")
+    
     // Testing
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
