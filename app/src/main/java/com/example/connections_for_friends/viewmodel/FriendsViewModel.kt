@@ -8,12 +8,30 @@ import com.example.connections_for_friends.data.FriendRepository
 import com.example.connections_for_friends.notification.ReminderScheduler
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import timber.log.Timber
 
 class FriendsViewModel(private val repository: FriendRepository) : ViewModel() {
     
-    val friends: Flow<List<Friend>> = repository.friends
+    // Original unsorted friends list from repository
+    private val _friends: Flow<List<Friend>> = repository.friends
+    
+    // Sorted friends list with advanced sorting logic
+    val friends: Flow<List<Friend>> = _friends.map { friendsList ->
+        friendsList.sortedWith(compareBy<Friend> { 
+            // Primary sort: First show friends who need contact now (past due)
+            if (it.nextReminderTime <= System.currentTimeMillis()) {
+                0L
+            } else {
+                // Sort upcoming contacts by time until contact
+                it.nextReminderTime - System.currentTimeMillis()
+            }
+        }.thenBy { 
+            // Secondary sort: If both friends have same contact time, sort by name alphabetically
+            it.name 
+        })
+    }
     
     fun addFriend(name: String, birthday: String, notes: String, reminderFrequencyDays: Int) {
         if (name.isBlank()) return
@@ -48,7 +66,7 @@ class FriendsViewModel(private val repository: FriendRepository) : ViewModel() {
     fun scheduleAllReminders(reminderScheduler: ReminderScheduler) {
         viewModelScope.launch {
             try {
-                val allFriends = repository.friends.first()
+                val allFriends = _friends.first()
                 Timber.d("Scheduling reminders for ${allFriends.size} friends")
                 
                 allFriends.forEach { friend ->

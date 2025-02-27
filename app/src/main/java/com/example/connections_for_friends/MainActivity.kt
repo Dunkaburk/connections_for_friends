@@ -215,21 +215,59 @@ fun FriendsList(
     onContactedClick: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    // Group friends by their contact status
+    val currentTime = System.currentTimeMillis()
+    val needContactNow = friends.filter { it.nextReminderTime <= currentTime }
+    val upcomingContact = friends.filter { it.nextReminderTime > currentTime }
+    
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
             .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        items(
-            items = friends,
-            key = { it.id }
-        ) { friend ->
-            FriendItem(
-                friend = friend,
-                onClick = { onFriendClick(friend.id) },
-                onContactedClick = { onContactedClick(friend.id) }
-            )
+        // Section: Need Contact Now
+        if (needContactNow.isNotEmpty()) {
+            item {
+                Text(
+                    text = "Need Contact Now",
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(vertical = 8.dp)
+                )
+            }
+            
+            items(
+                items = needContactNow,
+                key = { it.id }
+            ) { friend ->
+                FriendItem(
+                    friend = friend,
+                    onClick = { onFriendClick(friend.id) },
+                    onContactedClick = { onContactedClick(friend.id) }
+                )
+            }
+        }
+        
+        // Section: Upcoming Contacts
+        if (upcomingContact.isNotEmpty()) {
+            item {
+                Text(
+                    text = "Upcoming Contacts",
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
+                )
+            }
+            
+            items(
+                items = upcomingContact,
+                key = { it.id }
+            ) { friend ->
+                FriendItem(
+                    friend = friend,
+                    onClick = { onFriendClick(friend.id) },
+                    onContactedClick = { onContactedClick(friend.id) }
+                )
+            }
         }
     }
 }
@@ -310,10 +348,18 @@ fun FriendItem(
                 Text(
                     text = if (daysUntilNextContact == 0L) {
                         "Contact needed now"
+                    } else if (daysUntilNextContact == 1L) {
+                        "Contact needed tomorrow"
                     } else {
-                        "Days until next contact: $daysUntilNextContact"
+                        "Contact in $daysUntilNextContact days"
                     },
-                    style = MaterialTheme.typography.bodySmall
+                    style = MaterialTheme.typography.bodySmall,
+                    color = when {
+                        daysUntilNextContact == 0L -> MaterialTheme.colorScheme.error
+                        daysUntilNextContact <= 2L -> MaterialTheme.colorScheme.error.copy(alpha = 0.7f)
+                        daysUntilNextContact <= 7L -> MaterialTheme.colorScheme.primary
+                        else -> MaterialTheme.typography.bodySmall.color
+                    }
                 )
                 
                 // Show birthday information if available
@@ -452,8 +498,7 @@ fun AddFriendDialog(
                 Slider(
                     value = reminderFrequencyDays.toFloat(),
                     onValueChange = { reminderFrequencyDays = it.roundToInt() },
-                    valueRange = 1f..365f,
-                    steps = 364,
+                    valueRange = 1f..60f,
                     modifier = Modifier.fillMaxWidth()
                 )
             }
