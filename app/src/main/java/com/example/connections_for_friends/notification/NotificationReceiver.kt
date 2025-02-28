@@ -28,7 +28,6 @@ class NotificationReceiver : BroadcastReceiver() {
                 val friend = friends.find { it.id == friendId }
                 
                 friend?.let { 
-                    // Handle different notification types
                     when (notificationType) {
                         "CONTACT" -> {
                             notificationHelper.showReminderNotification(it, "CONTACT")
@@ -36,13 +35,10 @@ class NotificationReceiver : BroadcastReceiver() {
                         "BIRTHDAY_REMINDER" -> {
                             notificationHelper.showReminderNotification(it, "BIRTHDAY_REMINDER")
                             
-                            // If the birthday didn't change, schedule next year's reminder
                             val reminderScheduler = ReminderScheduler(context)
                             val updatedBirthdayTime = Friend.calculateNextBirthdayTime(it.birthday)
                             
-                            // Only reschedule if we have a valid date and it's different from the current one
                             if (updatedBirthdayTime != null && updatedBirthdayTime != it.nextBirthdayTime) {
-                                // Create an updated friend with the new birthday time
                                 val updatedFriend = it.copy(
                                     nextBirthdayTime = updatedBirthdayTime,
                                     nextBirthdayReminderTime = Friend.calculateNextBirthdayReminderTime(it.birthday)
@@ -54,13 +50,10 @@ class NotificationReceiver : BroadcastReceiver() {
                         "BIRTHDAY" -> {
                             notificationHelper.showReminderNotification(it, "BIRTHDAY")
                             
-                            // Schedule next year's birthday notification
                             val reminderScheduler = ReminderScheduler(context)
                             val nextYearBirthdayTime = Friend.calculateNextBirthdayTime(it.birthday)
                             
-                            // Only reschedule if we have a valid date and it's different from the current one
                             if (nextYearBirthdayTime != null && nextYearBirthdayTime != it.nextBirthdayTime) {
-                                // Create an updated friend with the new birthday time
                                 val updatedFriend = it.copy(
                                     nextBirthdayTime = nextYearBirthdayTime,
                                     nextBirthdayReminderTime = Friend.calculateNextBirthdayReminderTime(it.birthday)

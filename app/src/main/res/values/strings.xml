@@ -15,4 +15,11 @@
     <string name="save">Save</string>
     <string name="cancel">Cancel</string>
     <string name="go_back">Go Back</string>
+    
+    <!-- Widget Strings -->
+    <string name="widget_description">Shows friends who need to be contacted</string>
+    <string name="widget_title">Friends to Contact</string>
+    <string name="widget_empty">No friends need to be contacted right now</string>
+    <string name="widget_due">Due for contact</string>
+    <string name="open_app">Open app</string>
 </resources>

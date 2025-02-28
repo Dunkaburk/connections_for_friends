@@ -16,12 +16,18 @@ data class Friend(
     val notes: String = "",
     val reminderFrequencyDays: Int = 30,
     val lastContactedTime: Long? = null,
-    val nextReminderTime: Long = System.currentTimeMillis() + (reminderFrequencyDays * 24 * 60 * 60 * 1000L),
+    val nextReminderTime: Long = calculateNextReminderTime(lastContactedTime, reminderFrequencyDays),
     val nextBirthdayTime: Long? = calculateNextBirthdayTime(birthday),
     val nextBirthdayReminderTime: Long? = calculateNextBirthdayReminderTime(birthday)
 ) {
     companion object {
-        // Calculate the timestamp for the next birthday
+        fun calculateNextReminderTime(lastContactedTime: Long?, reminderFrequencyDays: Int): Long {
+            if (lastContactedTime == null) {
+                return System.currentTimeMillis()
+            }
+            
+            return lastContactedTime + (reminderFrequencyDays * 24 * 60 * 60 * 1000L)
+        }
         fun calculateNextBirthdayTime(birthdayStr: String): Long? {
             if (birthdayStr.isBlank()) return null
             
@@ -39,7 +45,6 @@ data class Friend(
                 val currentMonth = calendar.get(Calendar.MONTH) + 1 // Calendar months are 0-based
                 val currentDay = calendar.get(Calendar.DAY_OF_MONTH)
                 
-                // Set the birthday for this year
                 val birthdayCalendar = Calendar.getInstance()
                 birthdayCalendar.set(Calendar.MONTH, month - 1) // Calendar months are 0-based
                 birthdayCalendar.set(Calendar.DAY_OF_MONTH, day)
@@ -61,11 +66,10 @@ data class Friend(
             }
         }
         
-        // Calculate the timestamp for the reminder 1 week before birthday
         fun calculateNextBirthdayReminderTime(birthdayStr: String): Long? {
             val birthdayTime = calculateNextBirthdayTime(birthdayStr) ?: return null
             
-            // One week before birthday (7 days * 24 hours * 60 minutes * 60 seconds * 1000 milliseconds)
+            // One week before birthday (7 * 24 * 60 * 60 * 1000 milliseconds)
             return birthdayTime - (7L * 24L * 60L * 60L * 1000L)
         }
     }

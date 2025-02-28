@@ -19,10 +19,8 @@ import timber.log.Timber
 
 class FriendsViewModel(private val repository: FriendRepository) : ViewModel() {
     
-    // Original unsorted friends list from repository
     private val _friends: Flow<List<Friend>> = repository.friends
     
-    // Sorted friends list with advanced sorting logic
     val friends: Flow<List<Friend>> = _friends.map { friendsList ->
         friendsList.sortedWith(compareBy<Friend> { 
             // Primary sort: First show friends who need contact now (past due)
@@ -38,15 +36,12 @@ class FriendsViewModel(private val repository: FriendRepository) : ViewModel() {
         })
     }
     
-    // Contact import state
     private val _importState = MutableStateFlow<ImportState>(ImportState.Idle)
     val importState: StateFlow<ImportState> = _importState
     
-    // Selected contacts for import
     private val _availableContacts = MutableStateFlow<List<ContactData>>(emptyList())
     val availableContacts: StateFlow<List<ContactData>> = _availableContacts
     
-    // Count of contacts successfully imported
     private val _contactsImportedCount = MutableStateFlow(0)
     val contactsImportedCount: StateFlow<Int> = _contactsImportedCount
     
@@ -94,10 +89,7 @@ class FriendsViewModel(private val repository: FriendRepository) : ViewModel() {
             }
         }
     }
-    
-    /**
-     * Load contacts from the device's contacts
-     */
+
     fun loadContacts(context: Context) {
         viewModelScope.launch {
             try {
@@ -106,7 +98,6 @@ class FriendsViewModel(private val repository: FriendRepository) : ViewModel() {
                 val contactImporter = ContactImporter(context)
                 val contacts = contactImporter.getContacts()
                 
-                // Filter out contacts without names
                 val validContacts = contacts.filter { it.name.isNotBlank() }
                 
                 _availableContacts.value = validContacts
@@ -119,10 +110,7 @@ class FriendsViewModel(private val repository: FriendRepository) : ViewModel() {
             }
         }
     }
-    
-    /**
-     * Import selected contacts as friends
-     */
+
     fun importContacts(contacts: List<ContactData>, defaultReminderDays: Int) {
         viewModelScope.launch {
             try {
@@ -163,17 +151,13 @@ class FriendsViewModel(private val repository: FriendRepository) : ViewModel() {
             }
         }
     }
-    
-    /**
-     * Reset the import state
-     */
+
     fun resetImportState() {
         _importState.value = ImportState.Idle
         _contactsImportedCount.value = 0
     }
 }
 
-// Import state to track the contact import process
 sealed class ImportState {
     object Idle : ImportState()
     object Loading : ImportState()

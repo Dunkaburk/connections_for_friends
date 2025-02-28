@@ -22,28 +22,22 @@ class ReminderCheckWorker(
         try {
             Timber.d("Running reminder check")
             
-            // Get current time
             val currentTime = System.currentTimeMillis()
             
-            // Get all friends
             val friends = repository.friends.first()
             
-            // Find friends due for reminder
             val dueFriends = friends.filter { it.nextReminderTime <= currentTime }
             
             Timber.d("Found ${dueFriends.size} friends due for reminder")
             
-            // Send notifications for each friend
             dueFriends.forEach { friend ->
                 Timber.d("Sending reminder for ${friend.name}")
                 notificationHelper.showReminderNotification(friend)
                 
-                // Schedule next reminder
                 val nextReminderTime = currentTime + (friend.reminderFrequencyDays * 24 * 60 * 60 * 1000L)
                 val updatedFriend = friend.copy(nextReminderTime = nextReminderTime)
                 repository.updateFriend(updatedFriend)
                 
-                // Update the alarm for the next reminder
                 reminderScheduler.updateReminder(updatedFriend)
             }
             

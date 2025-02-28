@@ -22,7 +22,6 @@ class ContactImporter(private val context: Context) {
         val contentResolver: ContentResolver = context.contentResolver
         
         try {
-            // Query for contacts
             val cursor: Cursor? = contentResolver.query(
                 ContactsContract.Contacts.CONTENT_URI,
                 arrayOf(
@@ -38,7 +37,6 @@ class ContactImporter(private val context: Context) {
                 val idColumnIndex = cursor.getColumnIndex(ContactsContract.Contacts._ID)
                 val nameColumnIndex = cursor.getColumnIndex(ContactsContract.Contacts.DISPLAY_NAME_PRIMARY)
                 
-                // Skip invalid cursor
                 if (idColumnIndex == -1 || nameColumnIndex == -1) {
                     return@withContext emptyList<ContactData>()
                 }
@@ -48,21 +46,17 @@ class ContactImporter(private val context: Context) {
                         val contactId = it.getString(idColumnIndex)
                         val displayName = it.getString(nameColumnIndex)
                         
-                        // Skip contacts without a name
                         if (contactId == null || displayName.isNullOrBlank()) continue
                         
-                        // Get birthday if available
                         val birthday = getBirthday(contentResolver, contactId)
                         
                         contacts.add(ContactData(displayName, birthday))
                     } catch (e: Exception) {
-                        // Skip problematic contacts
                         continue
                     }
                 }
             }
         } catch (e: Exception) {
-            // Return empty list in case of error instead of crashing
             e.printStackTrace()
             return@withContext emptyList<ContactData>()
         }
@@ -94,7 +88,6 @@ class ContactImporter(private val context: Context) {
                     if (birthdayColumn != -1) {
                         val birthdayValue = it.getString(birthdayColumn)
                         
-                        // Format the birthday to MM-DD format for our app
                         if (!birthdayValue.isNullOrBlank()) {
                             birthday = formatBirthdayToMMDD(birthdayValue) ?: ""
                         }
@@ -102,7 +95,6 @@ class ContactImporter(private val context: Context) {
                 }
             }
         } catch (e: Exception) {
-            // If anything goes wrong, just return an empty string
             e.printStackTrace()
             birthday = ""
         }
@@ -113,7 +105,6 @@ class ContactImporter(private val context: Context) {
     private fun formatBirthdayToMMDD(rawBirthday: String?): String? {
         if (rawBirthday.isNullOrBlank()) return null
         
-        // Try various date formats commonly used in contacts
         val possibleFormats = listOf(
             "yyyy-MM-dd", // ISO format
             "MM/dd/yyyy", // US format
@@ -122,30 +113,25 @@ class ContactImporter(private val context: Context) {
             "yyyyMMdd"    // Compact format
         )
         
-        // First try to extract using known date formats
         for (format in possibleFormats) {
             try {
                 val sdf = SimpleDateFormat(format, Locale.getDefault())
-                sdf.isLenient = false // Strict parsing
+                sdf.isLenient = false
                 val date = sdf.parse(rawBirthday) ?: continue
                 
-                // Once parsed, extract month and day
                 val calendar = Calendar.getInstance()
                 calendar.time = date
                 
                 val month = calendar.get(Calendar.MONTH) + 1 // Calendar months are 0-based
                 val day = calendar.get(Calendar.DAY_OF_MONTH)
                 
-                // Return as MM-DD
                 return String.format("%02d-%02d", month, day)
             } catch (e: Exception) {
-                // Try next format
                 continue
             }
         }
-        
-        // If standard formats fail, try regex pattern matching as a fallback
-        // This will match patterns like MM-DD, M-D, etc.
+
+        // Fallback to regex pattern matching
         val monthDayPattern = Regex("(\\d{1,2})[/-](\\d{1,2})")
         val matchResult = monthDayPattern.find(rawBirthday)
         
@@ -155,12 +141,10 @@ class ContactImporter(private val context: Context) {
                 val month = monthStr.toInt()
                 val day = dayStr.toInt()
                 
-                // Basic validation
                 if (month in 1..12 && day in 1..31) {
                     return String.format("%02d-%02d", month, day)
                 }
-            } catch (e: Exception) {
-                // Fall through to return null
+            } catch (_: Exception) {
             }
         }
         

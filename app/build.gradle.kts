@@ -55,7 +55,7 @@ dependencies {
     implementation(libs.androidx.ui)
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
-    implementation(libs.androidx.material3)
+    // Material3 implementation is managed elsewhere
     
     // Navigation
     implementation(libs.androidx.navigation.compose)
@@ -77,6 +77,12 @@ dependencies {
     // Permissions
     implementation("com.google.accompanist:accompanist-permissions:0.32.0")
     
+    // Glance for app widgets
+    implementation(libs.androidx.glance)
+    implementation(libs.androidx.glance.appwidget)
+    // Use a specific version of material3 to avoid conflicts
+    implementation(libs.androidx.material3.android)
+
     // Testing
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

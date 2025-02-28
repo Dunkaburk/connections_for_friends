@@ -252,7 +252,6 @@ fun FriendsList(
     onContactedClick: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // Group friends by their contact status
     val currentTime = System.currentTimeMillis()
     val needContactNow = friends.filter { it.nextReminderTime <= currentTime }
     val upcomingContact = friends.filter { it.nextReminderTime > currentTime }
@@ -285,7 +284,7 @@ fun FriendsList(
             }
         }
         
-        // Section: Upcoming Contacts
+        // Section: Upcoming Contacts, maybe add more?
         if (upcomingContact.isNotEmpty()) {
             item {
                 Text(
@@ -315,27 +314,21 @@ fun FriendItem(
     onClick: () -> Unit,
     onContactedClick: () -> Unit
 ) {
-    // Calculate days since last contact
     val daysSinceLastContact = if (friend.lastContactedTime != null) {
         TimeUnit.MILLISECONDS.toDays(System.currentTimeMillis() - friend.lastContactedTime)
     } else {
         null
     }
     
-    // Calculate days until next contact
     val daysUntilNextContact = if (friend.nextReminderTime > System.currentTimeMillis()) {
         TimeUnit.MILLISECONDS.toDays(friend.nextReminderTime - System.currentTimeMillis())
     } else {
-        0L // Contact needed now
+        0L
     }
     
-    // Determine card background color based on contact status
     val cardBackgroundColor = when {
-        // Recently contacted (within last 2 days)
         daysSinceLastContact != null && daysSinceLastContact <= 2L -> RecentlyContactedGreen
-        // Needs contact soon (within next 2 days)
         daysUntilNextContact <= 2L -> NeedContactRed
-        // Normal status
         else -> NeutralCardColor
     }
     
@@ -381,7 +374,6 @@ fun FriendItem(
                     style = MaterialTheme.typography.bodySmall
                 )
                 
-                // Add the days until next contact
                 Text(
                     text = if (daysUntilNextContact == 0L) {
                         "Contact needed now"
@@ -403,9 +395,9 @@ fun FriendItem(
                 if (friend.birthday.isNotBlank() && friend.nextBirthdayTime != null) {
                     val daysUntilBirthday = TimeUnit.MILLISECONDS.toDays(
                         friend.nextBirthdayTime - System.currentTimeMillis()
-                    ).coerceAtLeast(0) // Never show negative days
+                    ).coerceAtLeast(0)
                     
-                    if (daysUntilBirthday <= 14) { // Show only if within 2 weeks
+                    if (daysUntilBirthday <= 14) {
                         Text(
                             text = if (daysUntilBirthday == 0L) {
                                 "🎂 Birthday today!"
@@ -441,12 +433,11 @@ fun AddFriendDialog(
     var notes by remember { mutableStateOf("") }
     var reminderFrequencyDays by remember { mutableIntStateOf(30) }
     
-    // For birthday input validation
     var isValidBirthday by remember { mutableStateOf(true) }
     var birthdayError by remember { mutableStateOf("") }
     
     fun validateBirthday(input: String): Boolean {
-        if (input.isBlank()) return true // Optional field
+        if (input.isBlank()) return true
         
         val regex = Regex("^(0?[1-9]|1[0-2])-(0?[1-9]|[12][0-9]|3[01])$")
         if (!regex.matches(input)) {
@@ -459,15 +450,13 @@ fun AddFriendDialog(
             val month = parts[0].toInt()
             val day = parts[1].toInt()
             
-            // Basic validation of month and day
             if (month < 1 || month > 12) {
                 birthdayError = "Month must be between 1-12"
                 return false
             }
             
-            // Simple validation for days in month
             val maxDays = when(month) {
-                2 -> 29 // Simplification for February (allowing leap year)
+                2 -> 29
                 4, 6, 9, 11 -> 30
                 else -> 31
             }
@@ -579,7 +568,6 @@ fun FriendDetailDialog(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 if (friend.birthday.isNotBlank()) {
-                    // Format the birthday to display month and day
                     val birthdayText = try {
                         val parts = friend.birthday.split("-")
                         if (parts.size == 2) {
@@ -600,7 +588,6 @@ fun FriendDetailDialog(
                         style = MaterialTheme.typography.bodyMedium
                     )
                     
-                    // If birthday is set, show days until next birthday
                     friend.nextBirthdayTime?.let { nextBirthdayTime ->
                         val daysUntilBirthday = TimeUnit.MILLISECONDS.toDays(
                             nextBirthdayTime - System.currentTimeMillis()
@@ -651,7 +638,6 @@ fun FriendDetailDialog(
                         style = MaterialTheme.typography.bodyMedium
                     )
                     
-                    // Calculate and display days until next contact
                     val daysUntilNextContact = if (friend.nextReminderTime > System.currentTimeMillis()) {
                         TimeUnit.MILLISECONDS.toDays(friend.nextReminderTime - System.currentTimeMillis())
                     } else {
@@ -676,7 +662,6 @@ fun FriendDetailDialog(
                         style = MaterialTheme.typography.bodyMedium
                     )
                     
-                    // For never contacted friends, next contact is due immediately
                     Text(
                         text = "Contact needed now",
                         style = MaterialTheme.typography.bodyMedium,
@@ -708,7 +693,6 @@ fun ImportContactsDialog(
     val availableContacts by viewModel.availableContacts.collectAsState()
     val contactsImportedCount by viewModel.contactsImportedCount.collectAsState()
     
-    // Check permission state
     val hasContactPermission = remember {
         ContextCompat.checkSelfPermission(
             context,
@@ -716,35 +700,29 @@ fun ImportContactsDialog(
         ) == PackageManager.PERMISSION_GRANTED
     }
     
-    // For requesting permission - use remember to prevent recreation
     val requestPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted -> 
         if (isGranted) {
-            // Permission granted, load contacts
             viewModel.loadContacts(context)
         }
     }
     
-    // Track selected contacts
     val selectedContacts = remember { mutableStateListOf<ContactData>() }
     var reminderFrequencyDays by remember { mutableIntStateOf(30) }
     var isSelectAll by remember { mutableStateOf(false) }
     
-    // Load contacts if permission already granted
     LaunchedEffect(hasContactPermission) {
         if (hasContactPermission && importState is ImportState.Idle) {
             viewModel.loadContacts(context)
         }
     }
     
-    // Handle selection of all contacts
     LaunchedEffect(isSelectAll, availableContacts) {
         if (isSelectAll) {
             selectedContacts.clear()
             selectedContacts.addAll(availableContacts)
         } else if (selectedContacts.size == availableContacts.size) {
-            // If all were selected and user unchecks "Select All"
             selectedContacts.clear()
         }
     }
@@ -760,7 +738,7 @@ fun ImportContactsDialog(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(8.dp)
-                    .height(400.dp), // Fixed height for scrollable content
+                    .height(400.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 when (importState) {
@@ -796,7 +774,6 @@ fun ImportContactsDialog(
                     
                     is ImportState.Success -> {
                         if (contactsImportedCount > 0) {
-                            // Show success message if contacts were imported
                             Column(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalAlignment = Alignment.CenterHorizontally
@@ -817,10 +794,8 @@ fun ImportContactsDialog(
                                 }
                             }
                         } else if (availableContacts.isEmpty()) {
-                            // No contacts found
                             Text("No contacts found on your device.")
                         } else {
-                            // Show contact selection UI
                             Column {
                                 // Default reminder frequency slider
                                 Text("Default reminder frequency: $reminderFrequencyDays days")

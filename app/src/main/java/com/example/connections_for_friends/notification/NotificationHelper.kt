@@ -136,7 +136,6 @@ class NotificationHelper(private val context: Context) {
     }
     
     private fun createBirthdayNotification(friend: Friend, pendingIntent: PendingIntent): android.app.Notification {
-        // Format the birthday to display month and day
         val birthdayText = if (friend.birthday.isNotBlank()) {
             try {
                 val parts = friend.birthday.split("-")
